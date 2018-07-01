@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -15,8 +16,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.mediaocean.ecommerce.product.Product;
 import com.mediaocean.ecommerce.product.ProductRepository;
-import com.mediaocean.ecommerce.product.category.Category;
-import com.mediaocean.ecommerce.product.category.CategoryType;
 
 /**
  * @author prafulljoshi
@@ -35,15 +34,47 @@ public class OrderController {
 	@Autowired
 	private ProductRepository productRepository;
 	
+	@CrossOrigin(origins = "http://localhost:8100")
 	@RequestMapping(method = RequestMethod.GET)
 	public List<Order> listOrders() {
 		return this.orderRepository.findAll();
 	}
 	
+	@CrossOrigin(origins = "http://localhost:8100")
 	@RequestMapping(method = RequestMethod.POST)
-	public void createOrder(@RequestBody Order order) {
+	public Order createOrder(@RequestBody Order order) {
 		// TODO Order Items Price calculations
-		this.orderRepository.saveAndFlush(order);
+		List<OrderItem> orderItems = order.getOrderItems();
+		Long orderPrice = 0L;
+		Long orderTax = 0L;
+		Long orderTotalPrice = 0L;
+		for(OrderItem orderItem : orderItems) {
+			Product productInput = orderItem.getProduct();
+			
+			Optional<Product> foundProduct = this.productRepository.findById(productInput.getProductId());
+			Product product = foundProduct.get();
+			
+			Long price = product.getPrice();
+			orderItem.setPrice(price);
+			Long tax = product.getCategory().getTaxPercentage() * price / 100;
+			Long totalPrice = price + tax;
+			orderItem.setPrice(price);
+			orderItem.setTax(tax);
+			orderItem.setTotalPrice(totalPrice);
+			
+			orderPrice = orderPrice + price;
+			orderTax = orderTax + tax;
+			orderTotalPrice = orderTotalPrice + totalPrice;
+		}
+		
+		order.setPrice(orderPrice);
+		order.setTax(orderTax);
+		order.setTotalPrice(orderTotalPrice);
+		
+		this.orderItemRepository.saveAll(orderItems);
+		this.orderItemRepository.flush();
+		Order savedOrder = this.orderRepository.saveAndFlush(order);
+		return savedOrder;
 	}
 	
 	@RequestMapping(value = "load", method = RequestMethod.GET)

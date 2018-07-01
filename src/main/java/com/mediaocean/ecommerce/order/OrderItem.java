@@ -31,7 +31,7 @@ public class OrderItem {
 	private Long tax;
 	private Long totalPrice;
 	
-	@OneToOne(cascade = CascadeType.ALL)
+	@OneToOne
 	@JoinColumn(name = "productId")
 	private Product product;
 	
